@@ -2,47 +2,33 @@ import re
 import os
 from collections import defaultdict
 from print_preferences import * 
-`
-def remove_imports(content, file_extension):
-    rules =  {
-            '.java':lambda content: re.sub(r'^\s*(import.*?;)\s*','',content,flags=re.MULTILINE),
-            '.c': lambda content: re.sub(r'^\s*#include\s+<.*?>\s*$','',content,flags=re.MULTILINE),
-             '.py': lambda content: re.sub(r'^\s*(import .*?|from .*? import .*?)\s*\n', '', content, flags=re.MULTILINE)
-            }
-    if file_extension in rules:
-        preprocess = rules[file_extension](content)
-    else:
-        preprocess = content
-    return (preprocess)
+from ipynb import *
 
 
-def preprocess_code(files,extension):
+def preprocess_code(files,path,extension):
     try:
-        if extension == '.c':
-            #remove comments c style code
-            CSTYLE = re.compile('''
-            (//[^\n]*(?:\n|$))    #Everything between // and the end of the line/file
-            |
-            (/\*.*?\*/)           #Everything between /* and */
-            ''', re.VERBOSE | re.MULTILINE | re.DOTALL)
-
-            files_preprocessed = CSTYLE.sub('\n',files)
-            #remove white spaces
-            files_preprocessed = re.sub(r'^\s*\n', '', files, flags=re.MULTILINE) 
-             
-            return files_preprocessed
-
-        elif extension == '.py':
-            #remove comments from python style code
-            PYSTYLE = re.compile(r'(?m)^ *#.*\n?',re.MULTILINE)
-            files_preprocessed = PYSTYLE.sub('', files)
-            #remove white leading spaces from code
-            files_preprocessed = re.sub(r'^\s*\n', '', files, flags=re.MULTILINE)
+        if (extension == '.h' or extension == '.c'):
+            #remove include_Statements
+            files_preprocessed = re.sub(r'#include\s+["<][^">]+[">]', '', files, flags=re.MULTILINE)
+            #remove comments single and multiline
+            files_preprocessed_1 = re.sub(r'\/\/[^\n]*|\/\*[\s\S]*?\*\/', '', files_preprocessed, flags=re.MULTILINE)
+            #remove White spaces
+            files_preprocessed_2 = re.sub(r'^\s*\n', '', files_preprocessed_1, flags=re.MULTILINE)
             
-            return files_preprocessed
-        
-        else:
-            return files
+            return files_preprocessed_2,path
+
+        if (extension == '.ipynb'):
+            #function to convert file to python file
+            code, file_path = preprocess_ipynb(files, path)
+
+            #remove imports
+            files_preprocess_1 = re.sub(r'^(?:import|from\s+\S+)\s+[^\n]*(?:\n|$)', '', code, flags=re.MULTILINE)
+            #remove comments
+            files_preprocess_2 = re.sub(r'(#.*?$|""".*?""")', '', files_preprocess_1, flags=re.MULTILINE | re.DOTALL)
+            #remove White spaces
+            files_preprocessed_3 = re.sub(r'^\s*\n', '', files_preprocess_2, flags=re.MULTILINE)
+            
+            return files_preprocessed_3,file_path
                 
     except Exception as e:
         print(f"Error: '{str(e)}'")
@@ -58,19 +44,18 @@ def analyze_file(repo_name, file_path, code_files):
         if file_extension in code_files:
             with open(file_path,'r',encoding='utf-8') as file:
                 content = file.read()
-                import_remove = remove_imports(content,file_extension)
-                preprocessed_code = preprocess_code(import_remove, file_extension)
+                preprocessed_code,path = preprocess_code(content, file_path,file_extension)
             
                 #count tokens to find  large files
                 token_count = len(preprocessed_code.split())
                 if token_count <= max_tokens_per_file:
-                    with open(file_path,'w', encoding='utf-8') as file:
+                    with open(path,'w', encoding='utf-8') as file:
                         file.write(preprocessed_code)
                         print_green(f"File '{file_name}' in '{repo_name}' preprocessed succesfully")
                 else:
                     #slice code to fit token limit
-                    sliced_code = preprocessed_code[:max_tokens_per_file]
-                    with open(file_path, 'w', encoding='utf-8')as file:
+                    sliced_code,path = preprocessed_code[:max_tokens_per_file]
+                    with open(path, 'w', encoding='utf-8')as file:
                         file.write(sliced_code)
 
                     print_green(f"File '{file_name}' in '{repo_name}' preprocessed with token slicing")
@@ -82,7 +67,7 @@ def analyze_file(repo_name, file_path, code_files):
 
 
 def main():
-   code_files = ['.js', '.py', '.c', '.java', '.cs', '.php', '.cpp', '.h', '.rb', '.swift', '.ts', '.kt', '.kts', '.css']
+   code_files = ['.ipynb','.js', '.py', '.c', '.java', '.cs', '.php','.html', '.cpp', '.h', '.rb', '.swift', '.ts', '.kt', '.kts', '.css']
    target_dir = "/home/vagrant/Data_Analysis_Project/repos/"
    for root,dirs,files in os.walk(target_dir):
        for file_name in files:

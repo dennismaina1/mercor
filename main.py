@@ -5,7 +5,7 @@ import shutil
 import subprocess
 from urllib.request import urlopen
 
-def fetch_repo_content(github_url,target_dir):
+ fetch_repo_content(github_url,target_dir):
     try:
         #extractusername
         username = github_url.split('/')[-1]
