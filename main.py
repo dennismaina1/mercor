@@ -1,11 +1,27 @@
 import json
+import concurrent.futures
+import asyncio
 import os
 import re
 import shutil
 import subprocess
 from urllib.request import urlopen
 
- fetch_repo_content(github_url,target_dir):
+def clone_repo(repo_url, target_dir):
+    try:
+        #create directories for different repos
+        repo_name = repo_url.split('/')[-1]
+        repo_dir = os.path.join(target_dir, repo_name)
+        if not os.path.exists(repo_dir): 
+            os.mkdir(repo_dir)
+
+        #clone repos
+        subprocess.call(['git', 'clone', repo_url, repo_dir],stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        print(f"Sucessfully clone repo {repo_url}")
+    except Exception as e:
+        print(f" Failed to clone repo {repo_url} Error: {str(e)}")
+
+def fetch_repo_content(github_url,target_dir):
     try:
         #extractusername
         username = github_url.split('/')[-1]
@@ -22,20 +38,14 @@ from urllib.request import urlopen
             shutil.rmtree(target_dir)
 
         if not os.path.exists(target_dir):
-            os.makedirs(target_dir)
-
-        #change directoryto target
-        os.chdir(target_dir)
-
-        #json file containing repo info
-        with open('repos.json', 'w')as outfile:
-            json.dump(repos,outfile,indent=2)
+            os.mkdir(target_dir)
 
         #clone repos
-        for repo in repos:
-            print (f"cloning repo {repo['html_url']}")
-            subprocess.call(['git','clone',repo['html_url']],stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            print(f"succesfully cloned repo {repo['html_url']}")
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            loop = asyncio.get_event_loop()
+            clone_tasks = [loop.run_in_executor(executor, clone_repo,repo['html_url'],target_dir) for repo in repos]
+            loop.run_until_complete(asyncio.gather(*clone_tasks))
+
 
     except Exception as e:
         print(f"Error:{str(e)}")
@@ -61,4 +71,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
