@@ -2,6 +2,7 @@ import re
 import argparse
 import os
 from collections import defaultdict 
+from ipynb import *
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="A script to remove whitespace, comments and imports from code files")
@@ -64,6 +65,7 @@ def preprocess_code(files,path,extension):
             files_preprocessed_2 = remove_imports(files_preprocessed_1,extension)
             #remove white spaces
             files_preprocessed_3 = re.sub(r'^\s*\n', '', files_preprocessed_2, flags=re.MULTILINE)
+
             
             return files_preprocessed_3,file_path
 
@@ -81,7 +83,10 @@ def preprocess_code(files,path,extension):
         print(f"Error: '{str(e)}'")
 
 
-def analyze_file(repo_name, file_path, code_files):
+def analyze_file(file_info):
+    file_path, repo_name = file_info
+    #CODE FILES
+    code_files = ['.ipynb', '.R', '.Rmd', '.js', '.py', '.c', '.java', '.cs', '.php', '.html', '.cpp', '.h', '.rb', '.swift', '.ts', '.kt', '.kts', '.css']
     #max tokens per file
     max_tokens_per_file=4096
     try:
@@ -109,31 +114,16 @@ def analyze_file(repo_name, file_path, code_files):
                     
         else:
             os.remove(file_path)
-            #print(f"Ignoring file '{file_name}' in '{repo_name}': Not a code file")
+            print(f"removed file '{file_name}' in '{repo_name}': Not a code file")
     except Exception as e:
         print(f"Error: '{str(e)}'")
 
 
 
-def main():
-    #args = parse_arguments()
-
-    code_files = ['.ipynb','.R','.Rmd','.js', '.py', '.c', '.java', '.cs', '.php','.html', '.cpp', '.h', '.rb', '.swift', '.ts', '.kt', '.kts', '.css']
-    #run script as standalone
-    #if args.file:
-       # target_dir = os.getcwd() 
-        #file_path = os.path.join(target_dir, args.file)
-        #analyze_file(None, file_path,code_files)
-    #run when called as a module
-    #else:
-    target_dir = "/home/vagrant/Data_Analysis_Project/repos/"
-    for root,dirs,files in os.walk(target_dir):
-        for file_name in files:
-            file_path = os.path.join(root, file_name)
-            #store repo name
-            repo_name = os.path.basename(root)
-            #analyze the files
-            analyze_file(repo_name, file_path,code_files)
+def main(files_to_preprocess):
+    #define parameters
+    for file_path in files_to_preprocess:
+        analyze_file(file_path,repo_name)
 
 
 if __name__ == "__main__":

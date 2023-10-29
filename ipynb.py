@@ -19,6 +19,7 @@ def preprocess_ipynb(files, file_path):
         #combine code to one code string
         python_code = '\n'.join(cells)
 
+
         #directory containing original fle
         dir_path = os.path.dirname(file_path)
         #create_new_file
@@ -28,6 +29,8 @@ def preprocess_ipynb(files, file_path):
 
         #file path
         python_file_path = os.path.join(dir_path, python_file)
+        #delete ipynb file
+        os.remove(file_path)   
         #return relevant data
         return python_code, python_file_path
 
