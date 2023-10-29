@@ -1,15 +1,8 @@
 import re
-import argparse
-import os
-from collections import defaultdict 
+import os 
 from ipynb import *
 
-def parse_arguments():
-    parser = argparse.ArgumentParser(description="A script to remove whitespace, comments and imports from code files")
-    parser.add_argument("file", help="enter file to preprocess")
-    args = parser.parse_args()
-    
-    return args
+
 
 def remove_imports(code,ext):
     #C,CPP,header files
@@ -54,21 +47,7 @@ def preprocess_code(files,path,extension):
             return files_preprocessed_3,path
 
 
-        elif extension == '.ipynb':
-            #function to convert file to python file
-            code, file_path = preprocess_ipynb(files, path)
-            #change ext
-            extension = '.py'    
-            #remove comments
-            files_preprocessed_1 = re.sub(r'(#.*?$|""".*?""")', '', code, flags=re.MULTILINE | re.DOTALL)
-            #remove import statements
-            files_preprocessed_2 = remove_imports(files_preprocessed_1,extension)
-            #remove white spaces
-            files_preprocessed_3 = re.sub(r'^\s*\n', '', files_preprocessed_2, flags=re.MULTILINE)
-
-            
-            return files_preprocessed_3,file_path
-
+        
         elif extension in ['.py','.rb','.R','.Rmd']:
             #remove comments
             files_preprocessed_1 = re.sub(r'(#.*?$|""".*?""")', '', files, flags=re.MULTILINE | re.DOTALL)
@@ -86,7 +65,7 @@ def preprocess_code(files,path,extension):
 def analyze_file(file_info):
     file_path, repo_name = file_info
     #CODE FILES
-    code_files = ['.ipynb', '.R', '.Rmd', '.js', '.py', '.c', '.java', '.cs', '.php', '.html', '.cpp', '.h', '.rb', '.swift', '.ts', '.kt', '.kts', '.css']
+    code_files = ['.R', '.Rmd', '.js', '.py', '.c', '.java', '.cs', '.php', '.html', '.cpp', '.h', '.rb', '.swift', '.ts', '.kt', '.kts', '.css']
     #max tokens per file
     max_tokens_per_file=4096
     try:
@@ -112,8 +91,33 @@ def analyze_file(file_info):
 
                     print(f"File '{file_name}' in '{repo_name}' preprocessed with token slicing")
                     
+        elif file_extension ==".ipynb":
+            extension = ".py"
+            code,path = preprocess_ipynb(file_path)
+            #remove comments
+            files_preprocessed_1 = re.sub(r'(#.*?$|""".*?""")', '', code, flags=re.MULTILINE | re.DOTALL)
+            #remove import statements
+            files_preprocessed_2 = remove_imports(files_preprocessed_1,extension)
+            #remove white spaces
+            files_preprocessed_3 = re.sub(r'^\s*\n', '', files_preprocessed_2, flags=re.MULTILINE)
+
+            token_count = len(files_preprocessed_3.split())
+            if token_count <= max_tokens_per_file:
+                   with open(path,'w', encoding='utf-8') as file:
+                        file.write(files_preprocessed_3)
+                        print(f"File '{file_name}' in '{repo_name}' preprocessed succesfully")
+            else:
+                   #slice code to fit token limit
+                   sliced_code = files_preprocessed_3[:max_tokens_per_file]
+                   sliced_code_path = path.replace('.ipynb', '_sliced.py')
+                   with open(sliced_code_path, 'w', encoding='utf-8')as file:
+                       file.write(sliced_code)
+
+            print(f"File '{file_name}' in '{repo_name}' preprocessed with token slicing")
+                    
+            
         else:
-            os.remove(file_path)
+            os.remove(os.path.normpath(file_path))
             print(f"removed file '{file_name}' in '{repo_name}': Not a code file")
     except Exception as e:
         print(f"Error: '{str(e)}'")
@@ -123,7 +127,7 @@ def analyze_file(file_info):
 def main(files_to_preprocess):
     #define parameters
     for file_path in files_to_preprocess:
-        analyze_file(file_path,repo_name)
+        analyze_file(file_path)
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@ import nbformat
 import os
 
 #preprocessing_ipynb
-def preprocess_ipynb(files, file_path):
+def preprocess_ipynb(file_path):
     file_extension = '.py'
     try:
         with open (file_path,'r',encoding = 'utf-8') as notebook_file:
